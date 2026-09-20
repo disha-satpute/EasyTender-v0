@@ -29,9 +29,37 @@ export const mockDocuments = [
   },
   {
     id: 'doc-5',
-    name: 'Bandhpatra',
-    category: 'Other',
+    name: 'IFR',
+    category: 'Financial',
     lastUpdated: '1 week ago',
+    status: 'Open'
+  },
+  {
+    id: 'doc-6',
+    name: 'Stamp Paper',
+    category: 'Declarations',
+    lastUpdated: '1 week ago',
+    status: 'Open'
+  },
+  {
+    id: 'doc-7',
+    name: 'Bandhpatra',
+    category: 'Declarations',
+    lastUpdated: '2 weeks ago',
+    status: 'Open'
+  },
+  {
+    id: 'doc-8',
+    name: 'Experience Certificate',
+    category: 'Experience',
+    lastUpdated: '2 weeks ago',
+    status: 'Open'
+  },
+  {
+    id: 'doc-9',
+    name: 'Affidavit',
+    category: 'Declarations',
+    lastUpdated: '3 weeks ago',
     status: 'Open'
   },
 ];
