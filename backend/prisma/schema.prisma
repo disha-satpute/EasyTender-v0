@@ -1,0 +1,53 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  name      String
+  documents Document[]
+}
+
+model Document {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  name             String
+  category         String?
+  mimeType         String
+  fileSize         Int
+  pageCount        Int               @default(0)
+  processingStatus ProcessingStatus  @default(UPLOADING)
+  processingType   ProcessingType?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  versions         DocumentVersion[]
+}
+
+model DocumentVersion {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+  versionNum Int      @default(1)
+  fileKey    String   
+  createdAt  DateTime @default(now())
+}
+
+enum ProcessingStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum ProcessingType {
+  DIGITAL_TEXT
+  OCR
+  MIXED
+}
