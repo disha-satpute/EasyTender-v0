@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+backend/.env
+uploads/
+input/
+output/
+backend/node_modules/
+pdf-service/__pycache__/
