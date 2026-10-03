@@ -119,6 +119,170 @@ app.get('/api/documents', async (req, res) => {
   }
 });
 
+// 3. Update document (Rename)
+app.put('/api/documents/:id', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    
+    const document = await prisma.document.update({
+      where: { id: req.params.id },
+      data: { name: name },
+      include: { versions: { orderBy: { versionNum: 'desc' } } }
+    });
+    return res.json(document);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update document' });
+  }
+});
+
+// 4. Search text in Document
+app.post('/api/documents/:id/search', async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: req.params.id },
+      include: { versions: { orderBy: { versionNum: 'desc' }, take: 1 } }
+    });
+
+    if (!document || document.versions.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const { searchText } = req.body;
+    const latestVersion = document.versions[0];
+
+    // Call python service
+    const pyRes = await fetch('http://localhost:8000/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileKey: latestVersion.fileKey,
+        searchText: searchText
+      })
+    });
+
+    if (!pyRes.ok) throw new Error('Python service failed');
+    const data = await pyRes.json();
+    return res.json(data);
+  } catch (error) {
+    console.error('Search error:', error);
+    return res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// 4. Replace text in Document
+app.post('/api/documents/:id/replace', async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: req.params.id },
+      include: { versions: { orderBy: { versionNum: 'desc' }, take: 1 } }
+    });
+
+    if (!document || document.versions.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const { findText, replaceText, matchIndex } = req.body;
+    const latestVersion = document.versions[0];
+
+    // Call python service
+    const pyRes = await fetch('http://localhost:8000/replace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileKey: latestVersion.fileKey,
+        findText,
+        replaceText,
+        matchIndex
+      })
+    });
+
+    if (!pyRes.ok) throw new Error('Python service failed');
+    const data = await pyRes.json();
+
+    if (data.success) {
+      // Create a new version in the database
+      const newVersionNum = latestVersion.versionNum + 1;
+      await prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          versionNum: newVersionNum,
+          fileKey: data.newFileKey
+        }
+      });
+      
+      // Return updated document
+      const updatedDoc = await prisma.document.findUnique({
+        where: { id: document.id },
+        include: { versions: { orderBy: { versionNum: 'desc' } } }
+      });
+      return res.json(updatedDoc);
+    } else {
+      return res.status(400).json({ error: 'Replace failed or no matches found' });
+    }
+  } catch (error) {
+    console.error('Replace error:', error);
+    return res.status(500).json({ error: 'Replace failed' });
+  }
+});
+
+// 5. Add Text to Document
+app.post('/api/documents/:id/add-text', async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: req.params.id },
+      include: { versions: { orderBy: { versionNum: 'desc' }, take: 1 } }
+    });
+
+    if (!document || document.versions.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const { text, x, y, page } = req.body;
+    const latestVersion = document.versions[0];
+
+    // Call python service
+    const pyRes = await fetch('http://localhost:8000/add-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileKey: latestVersion.fileKey,
+        text,
+        x,
+        y,
+        page
+      })
+    });
+
+    if (!pyRes.ok) throw new Error('Python service failed');
+    const data = await pyRes.json();
+
+    if (data.success) {
+      // Create a new version in the database
+      const newVersionNum = latestVersion.versionNum + 1;
+      await prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          versionNum: newVersionNum,
+          fileKey: data.newFileKey
+        }
+      });
+      
+      // Return updated document
+      const updatedDoc = await prisma.document.findUnique({
+        where: { id: document.id },
+        include: { versions: { orderBy: { versionNum: 'desc' } } }
+      });
+      return res.json(updatedDoc);
+    } else {
+      return res.status(400).json({ error: 'Add text failed' });
+    }
+  } catch (error) {
+    console.error('Add text error:', error);
+    return res.status(500).json({ error: 'Add text failed' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
 });
